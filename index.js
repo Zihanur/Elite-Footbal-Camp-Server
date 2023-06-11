@@ -41,6 +41,15 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/classes/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await classCollection.deleteOne(query);
+      res.send(result);
+    });
+
+
+
     //student select class
     app.post("/select", async (req, res) => {
       const item = req.body;
@@ -98,6 +107,20 @@ async function run() {
       const updateDoc = {
         $set: {
           role: 'admin'
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
+    //user make Instructor
+    app.patch('/users/instructor/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'instructor'
         },
       };
       const result = await userCollection.updateOne(filter, updateDoc);
