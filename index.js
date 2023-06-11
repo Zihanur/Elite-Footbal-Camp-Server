@@ -50,7 +50,7 @@ async function run() {
 
     app.get("/select", async (req, res) => {
       const email = req.query.email;
-      console.log(email)
+      console.log(email);
       if (!email) {
         res.send([]);
       }
@@ -59,27 +59,48 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/select/:id", async(req,res)=>{
+    app.delete("/select/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await selectCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
     //all users
-    app.post('/users', async(req,res)=>{
+    app.post("/users", async (req, res) => {
       const user = req.body;
-      const query = { email: user.email }
+      const query = { email: user.email };
       const existingUser = await userCollection.findOne(query);
       if (existingUser) {
-        return res.send({ message: 'user already Added' })
+        return res.send({ message: "user already Added" });
       }
       const result = userCollection.insertOne(user);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
-    app.get('/users',async(req,res)=>{
-      const result= await userCollection.find().toArray();
+    app.get("/users", async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.delete("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    //user make admin
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'admin'
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
     })
 
