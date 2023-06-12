@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
@@ -8,6 +9,26 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(cors());
 app.use(express.json());
+
+//verify jwt
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res
+      .status(401)
+      .send({ error: true, message: "unauthorized access" });
+  }
+  const token = authorization.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: "unauthorized access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.0eicqxw.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -29,6 +50,15 @@ async function run() {
     const selectCollection = client.db("footballCampDB").collection("select");
     const userCollection = client.db("footballCampDB").collection("users");
 
+    //jwt
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1d",
+      });
+      res.send({ token });
+    });
+
     //instructors
     app.get("/instructors", async (req, res) => {
       const result = await instructorCollection.find().toArray();
@@ -48,7 +78,22 @@ async function run() {
       res.send(result);
     });
 
+    //instructor add and get class
+    app.post("/classes", async (req, res) => {
+      const newClass = req.body;
+      const result = await classCollection.insertOne(newClass);
+      res.send(result);
+    });
 
+    app.get("/instructorclasses", async (req, res) => {
+      const name = req.query.name;
+      if (!name) {
+        res.send([]);
+      }
+      const query = { name: name };
+      const result = await classCollection.find(query).toArray();
+      res.send(result);
+    });
 
     //student select class
     app.post("/select", async (req, res) => {
@@ -59,7 +104,6 @@ async function run() {
 
     app.get("/select", async (req, res) => {
       const email = req.query.email;
-      console.log(email);
       if (!email) {
         res.send([]);
       }
@@ -100,32 +144,44 @@ async function run() {
     });
 
     //user make admin
-    app.patch('/users/admin/:id', async (req, res) => {
+    app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          role: 'admin'
+          role: "admin",
         },
       };
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
-    })
+    });
+
+    //check admin
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const result = { admin: user?.role === "admin" };
+      res.send(result);
+    });
 
     //user make Instructor
-    app.patch('/users/instructor/:id', async (req, res) => {
+    app.patch("/users/instructor/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          role: 'instructor'
+          role: "instructor",
         },
       };
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
-    })
+    });
 
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
